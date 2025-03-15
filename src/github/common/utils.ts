@@ -1,6 +1,7 @@
 import { getUserAgent } from "universal-user-agent";
 import { createGitHubError } from "./errors.js";
 import { VERSION } from "./version.js";
+import * as process from 'node:process';
 
 type RequestOptions = {
   method?: string;

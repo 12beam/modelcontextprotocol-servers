@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
@@ -26,6 +26,7 @@ import {
   isGitHubError,
 } from './common/errors.js';
 import { VERSION } from "./common/version.js";
+import * as process from 'node:process';
 
 const server = new Server(
   {
@@ -470,13 +471,19 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   }
 });
 
-async function runServer() {
-  const transport = new StdioServerTransport();
-  await server.connect(transport);
-  console.error("GitHub MCP Server running on stdio");
+/// start server
+export async function start(serverTransport: InMemoryTransport): Promise<void> {
+    await server.connect(serverTransport);
 }
 
-runServer().catch((error) => {
-  console.error("Fatal error in main():", error);
-  process.exit(1);
-});
+/// validate required headers
+export function validate(headers: any) {
+    if (!(headers.get("x-github-personal-access-token")))
+        return {"required": {
+            "x-github-personal-access-token":"Personal access token with `repo` or `public_repo` scope."
+        }}
+    else
+        process.env.GITHUB_PERSONAL_ACCESS_TOKEN = headers.get("x-github-personal-access-token");
+
+    return {}
+}

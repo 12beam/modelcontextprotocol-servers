@@ -28,7 +28,7 @@ import { VERSION } from "./common/version.js";
 
 import * as process from 'node:process';
 import { WorkerEntrypoint } from "cloudflare:workers";
-import { proxyMessage } from '@contextdepot/mcp-proxy/dist/index.js'
+import { proxyMessage, validateHeaders } from '@contextdepot/mcp-proxy/dist/index.js'
 
 const server = new Server(
   {
@@ -474,20 +474,23 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 });
 
 export default class extends WorkerEntrypoint {
+    // main worker entrypoint
     async fetch(request, env, ctx): Promise<Response> {
         return new Response("Not found", { status: 404 });
     }
 
     // validate server intput
-    async validate(headers: any) {
-        if (!(headers.get("x-github-personal-access-token")))
-            return {"required": {
-                "x-github-personal-access-token":"Personal access token with `repo` or `public_repo` scope."
-            }}
-        else
-            process.env.GITHUB_PERSONAL_ACCESS_TOKEN = headers.get("x-github-personal-access-token");
+    validate(headers) {
+        const missing = validateHeaders(headers, {
+            "x-github-personal-access-token": "Personal access token with `repo` or `public_repo` scope."
+        });
 
-        return {}
+        process.env.GITHUB_PERSONAL_ACCESS_TOKEN = headers.get("x-github-personal-access-token");
+
+        if (!Object.keys(missing).length) {
+            return {};
+        }
+        return { "required": JSON.stringify(missing) }
     }
 
     // send message to the server

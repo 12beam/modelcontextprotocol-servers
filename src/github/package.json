@@ -30,7 +30,7 @@
     "zod-to-json-schema": "^3.23.5"
   },
   "devDependencies": {
-    "@contextdepot/mcp-proxy": "github:12beam/cd-mcp-proxy",
+    "@contextdepot/mcp-proxy": "git+ssh://github.com/12beam/cd-mcp-proxy.git",
     "@cloudflare/vitest-pool-workers": "^0.7.5",
     "@cloudflare/workers-types": "^4.20250313.0",
     "typescript": "^5.5.2",

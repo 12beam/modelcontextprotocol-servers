@@ -27,6 +27,7 @@ import {
 } from './common/errors.js';
 import { VERSION } from "./common/version.js";
 import * as process from 'node:process';
+import { WorkerEntrypoint } from "cloudflare:workers";
 
 const server = new Server(
   {
@@ -471,19 +472,40 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   }
 });
 
-/// start server
-export async function start(serverTransport: InMemoryTransport): Promise<void> {
-    await server.connect(serverTransport);
-}
+export default class extends WorkerEntrypoint {
+    /// Return the description about the MCP
+    async fetch(request, env, ctx): Promise<Response> {
+        return new Response('This is GitHub worker');
+    }
 
-/// validate required headers
-export function validate(headers: any) {
-    if (!(headers.get("x-github-personal-access-token")))
-        return {"required": {
-            "x-github-personal-access-token":"Personal access token with `repo` or `public_repo` scope."
-        }}
-    else
-        process.env.GITHUB_PERSONAL_ACCESS_TOKEN = headers.get("x-github-personal-access-token");
+    /// validate required headers
+    validate(headers: any) {
+        if (!(headers.get("x-github-personal-access-token")))
+            return {"required": {
+                "x-github-personal-access-token":"Personal access token with `repo` or `public_repo` scope."
+            }}
+        else
+            process.env.GITHUB_PERSONAL_ACCESS_TOKEN = headers.get("x-github-personal-access-token");
 
-    return {}
+        return {}
+    }
+
+    /// start the MCP server
+    async message(requestMessage): Promise<void> {
+        const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+        let responseMessage;
+        const finished = new Promise((resolve) => {
+            clientTransport.onmessage = (message) => {
+                responseMessage = message;
+                resolve();
+            };
+        });
+
+        // server created locally
+        await server.connect(serverTransport);
+        await clientTransport.send(requestMessage);
+        await finished;
+
+        return responseMessage
+    }
 }

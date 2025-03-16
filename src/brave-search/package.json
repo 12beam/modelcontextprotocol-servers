@@ -24,8 +24,11 @@
     "@modelcontextprotocol/sdk": "1.0.1"
   },
   "devDependencies": {
-    "@types/node": "^22",
-    "shx": "^0.3.4",
-    "typescript": "^5.6.2"
+    "@contextdepot/mcp-proxy": "git+ssh://github.com/12beam/cd-mcp-proxy.git",
+    "@cloudflare/vitest-pool-workers": "^0.7.5",
+    "@cloudflare/workers-types": "^4.20250313.0",
+    "typescript": "^5.5.2",
+    "vitest": "~3.0.7",
+    "wrangler": "^4.0.0"
   }
 }

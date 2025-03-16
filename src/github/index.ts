@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
-import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
@@ -26,8 +25,10 @@ import {
   isGitHubError,
 } from './common/errors.js';
 import { VERSION } from "./common/version.js";
+
 import * as process from 'node:process';
 import { WorkerEntrypoint } from "cloudflare:workers";
+import { proxyMessage } from '@contextdepot/mcp-proxy/dist/index.js'
 
 const server = new Server(
   {
@@ -473,13 +474,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 });
 
 export default class extends WorkerEntrypoint {
-    /// Return the description about the MCP
     async fetch(request, env, ctx): Promise<Response> {
-        return new Response('This is GitHub worker');
+        return new Response("Not found", { status: 404 });
     }
 
-    /// validate required headers
-    validate(headers: any) {
+    // validate server intput
+    async validate(headers: any) {
         if (!(headers.get("x-github-personal-access-token")))
             return {"required": {
                 "x-github-personal-access-token":"Personal access token with `repo` or `public_repo` scope."
@@ -490,22 +490,8 @@ export default class extends WorkerEntrypoint {
         return {}
     }
 
-    /// start the MCP server
+    // send message to the server
     async message(requestMessage): Promise<void> {
-        const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
-        let responseMessage;
-        const finished = new Promise((resolve) => {
-            clientTransport.onmessage = (message) => {
-                responseMessage = message;
-                resolve();
-            };
-        });
-
-        // server created locally
-        await server.connect(serverTransport);
-        await clientTransport.send(requestMessage);
-        await finished;
-
-        return responseMessage
+        return proxyMessage(server, requestMessage)
     }
-}
+};

@@ -1,12 +1,15 @@
 #!/usr/bin/env node
 
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
   Tool,
 } from "@modelcontextprotocol/sdk/types.js";
+
+import * as process from 'node:process';
+import { WorkerEntrypoint } from "cloudflare:workers";
+import { proxyMessage, validateHeaders } from '@contextdepot/mcp-proxy/dist/index.js'
 
 const WEB_SEARCH_TOOL: Tool = {
   name: "brave_web_search",
@@ -77,13 +80,6 @@ const server = new Server(
     },
   },
 );
-
-// Check for API key
-const BRAVE_API_KEY = process.env.BRAVE_API_KEY!;
-if (!BRAVE_API_KEY) {
-  console.error("Error: BRAVE_API_KEY environment variable is required");
-  process.exit(1);
-}
 
 const RATE_LIMIT = {
   perSecond: 1,
@@ -188,7 +184,7 @@ async function performWebSearch(query: string, count: number = 10, offset: numbe
     headers: {
       'Accept': 'application/json',
       'Accept-Encoding': 'gzip',
-      'X-Subscription-Token': BRAVE_API_KEY
+      'X-Subscription-Token': process.env.BRAVE_API_KEY!
     }
   });
 
@@ -223,7 +219,7 @@ async function performLocalSearch(query: string, count: number = 5) {
     headers: {
       'Accept': 'application/json',
       'Accept-Encoding': 'gzip',
-      'X-Subscription-Token': BRAVE_API_KEY
+      'X-Subscription-Token': process.env.BRAVE_API_KEY!
     }
   });
 
@@ -255,7 +251,7 @@ async function getPoisData(ids: string[]): Promise<BravePoiResponse> {
     headers: {
       'Accept': 'application/json',
       'Accept-Encoding': 'gzip',
-      'X-Subscription-Token': BRAVE_API_KEY
+      'X-Subscription-Token': process.env.BRAVE_API_KEY!
     }
   });
 
@@ -275,7 +271,7 @@ async function getDescriptionsData(ids: string[]): Promise<BraveDescription> {
     headers: {
       'Accept': 'application/json',
       'Accept-Encoding': 'gzip',
-      'X-Subscription-Token': BRAVE_API_KEY
+      'X-Subscription-Token': process.env.BRAVE_API_KEY!
     }
   });
 
@@ -364,13 +360,28 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   }
 });
 
-async function runServer() {
-  const transport = new StdioServerTransport();
-  await server.connect(transport);
-  console.error("Brave Search MCP Server running on stdio");
-}
+export default class extends WorkerEntrypoint {
+    // main worker entrypoint
+    async fetch(request, env, ctx): Promise<Response> {
+        return new Response("Not found", { status: 404 });
+    }
 
-runServer().catch((error) => {
-  console.error("Fatal error running server:", error);
-  process.exit(1);
-});
+    // validate server intput
+    validate(headers) {
+        const missing = validateHeaders(headers, {
+            "x-brave-api-key": "Brave API key generated from developer dashboard"
+        });
+
+        process.env.BRAVE_API_KEY = headers.get("x-brave-api-key");
+
+        if (!Object.keys(missing).length) {
+            return {};
+        }
+        return { "required": JSON.stringify(missing) }
+    }
+
+    // send message to the server
+    async message(requestMessage): Promise<void> {
+        return proxyMessage(server, requestMessage)
+    }
+};

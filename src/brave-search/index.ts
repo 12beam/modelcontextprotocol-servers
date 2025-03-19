@@ -374,10 +374,7 @@ export default class extends WorkerEntrypoint {
 
         process.env.BRAVE_API_KEY = headers.get("x-brave-api-key");
 
-        if (!Object.keys(missing).length) {
-            return {};
-        }
-        return { "required": JSON.stringify(missing) }
+        return missing
     }
 
     // send message to the server

@@ -487,10 +487,7 @@ export default class extends WorkerEntrypoint {
 
         process.env.GITHUB_PERSONAL_ACCESS_TOKEN = headers.get("x-github-personal-access-token");
 
-        if (!Object.keys(missing).length) {
-            return {};
-        }
-        return { "required": JSON.stringify(missing) }
+        return missing
     }
 
     // send message to the server

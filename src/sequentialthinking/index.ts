@@ -276,7 +276,7 @@ export default class extends WorkerEntrypoint {
 
     // validate server intput
     validate(headers) {
-        return {};
+        return [];
     }
 
     // send message to the server
